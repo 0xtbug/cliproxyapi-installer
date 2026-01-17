@@ -59,7 +59,7 @@ cd cliproxyapi-installer
      ```bash
      # Enable the service to start automatically on user login
      systemctl --user enable cliproxyapi.service
-     
+
      # Verify it's enabled
      systemctl --user is-enabled cliproxyapi.service
      ```
@@ -84,6 +84,8 @@ The installer script supports multiple commands:
 | `check-config` | Verify configuration and API keys |
 | `generate-key` | Generate a new API key |
 | `manage-docs` | Manage documentation and check consistency |
+| `system-service` | Create system-wide service (requires sudo, production-safe) |
+| `system-status` | Check system-wide service status |
 | `uninstall` | Remove CLIProxyAPI completely |
 | `-h` / `--help` | Show help message |
 
@@ -104,6 +106,10 @@ The installer script supports multiple commands:
 
 # Show authentication setup info
 ./cliproxyapi-installer auth
+
+# Create system-wide service (production)
+sudo ./cliproxyapi-installer system-service
+sudo ./cliproxyapi-installer system-service /opt/cliproxyapi  # custom path
 
 # Uninstall completely
 ./cliproxyapi-installer uninstall
@@ -263,6 +269,62 @@ journalctl --user -u cliproxyapi.service -n 50
 ls -la ~/.config/systemd/user/cliproxyapi.service
 ```
 
+### 🚀 System-Wide Service (Production)
+
+For production environments, use the `system-service` command to create a **system-wide** systemd service that:
+
+- ✅ **Runs 24/7** in the background
+- ✅ **Survives SSH logout**
+- ✅ **Survives system reboot**
+- ✅ **Auto-restarts** on failure (5-second delay)
+- ✅ **Production-safe**
+
+```bash
+# Create system service with default path (/root/cliproxyapi)
+sudo ./cliproxyapi-installer system-service
+
+# Or specify custom installation path
+sudo ./cliproxyapi-installer system-service /opt/cliproxyapi
+sudo ./cliproxyapi-installer system-service /home/user/cliproxyapi
+```
+
+This creates `/etc/systemd/system/cliproxyapi.service` with the following configuration:
+
+```ini
+[Unit]
+Description=CLIProxyAPI Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/root/cliproxyapi/cli-proxy-api
+WorkingDirectory=/root/cliproxyapi
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Managing the system service:**
+
+```bash
+# Check status
+systemctl status cliproxyapi
+
+# Restart service
+systemctl restart cliproxyapi
+
+# Stop service
+systemctl stop cliproxyapi
+
+# View logs
+journalctl -u cliproxyapi -f
+```
+
+> **Note**: The `system-service` command requires `sudo` privileges and automatically enables and starts the service.
+
 ## Troubleshooting
 
 ### Common Issues
@@ -276,7 +338,7 @@ ls -la ~/.config/systemd/user/cliproxyapi.service
     ```bash
     # Check what's missing
     ./cliproxyapi-installer status
-    
+
     # Install required tools
     sudo apt-get install curl wget tar  # Ubuntu/Debian
     ```
@@ -291,7 +353,7 @@ ls -la ~/.config/systemd/user/cliproxyapi.service
     ```bash
     # Check service logs
     journalctl --user -u cliproxyapi.service -n 50
-    
+
     # Check configuration
     ./cliproxyapi-installer check-config
     ```
@@ -300,10 +362,10 @@ ls -la ~/.config/systemd/user/cliproxyapi.service
     ```bash
     # Check what's using port 8317
     netstat -tlnp | grep 8317
-    
+
     # Stop the existing process
     pkill cli-proxy-api
-    
+
     # Then restart the service
     systemctl --user restart cliproxyapi.service
     ```
@@ -312,10 +374,10 @@ ls -la ~/.config/systemd/user/cliproxyapi.service
     ```bash
     # Reload systemd daemon
     systemctl --user daemon-reload
-    
+
     # Check if service file exists
     ls -la ~/.config/systemd/user/cliproxyapi.service
-    
+
     # Reset service (disable and re-enable)
     systemctl --user disable cliproxyapi.service
     systemctl --user enable cliproxyapi.service
@@ -326,10 +388,10 @@ ls -la ~/.config/systemd/user/cliproxyapi.service
     ```bash
     # If service doesn't restart after upgrade
     systemctl --user status cliproxyapi.service
-    
+
     # Check recent service logs
     journalctl --user -u cliproxyapi.service -n 20
-    
+
     # Manually restart if needed
     systemctl --user restart cliproxyapi.service
     ```
@@ -339,10 +401,10 @@ ls -la ~/.config/systemd/user/cliproxyapi.service
     # If your config was accidentally overwritten (should never happen)
     # Check backup directory
     ls -la ~/cliproxyapi/config_backup/
-    
+
     # Restore from latest backup
     cp ~/cliproxyapi/config_backup/config_YYYYMMDD_HHMMSS.yaml ~/cliproxyapi/config.yaml
-    
+
     # Restart service after restoring
     systemctl --user restart cliproxyapi.service
     ```
